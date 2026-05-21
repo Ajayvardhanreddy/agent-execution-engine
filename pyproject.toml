@@ -1,0 +1,35 @@
+[project]
+name = "agent-execution-engine"
+version = "0.1.0"
+description = "Self-hostable agent execution engine with state-machine orchestration, typed tool execution, persistent memory, trace replay, and automated evals"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "anthropic>=0.103.1",
+    "fastapi>=0.136.1",
+    "fastmcp>=3.3.1",
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.27.1",
+    "prometheus-client>=0.25.0",
+    "pydantic>=2.13.4",
+    "uvicorn[standard]>=0.47.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "pytest-httpx>=0.36.2",
+    "ruff>=0.15.13",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

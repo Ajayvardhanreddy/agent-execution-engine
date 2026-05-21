@@ -1,0 +1,46 @@
+services:
+  # ─── Layer 1: Distributed KV Store (3 nodes) ──────────────────────────────
+  # TODO Phase 6: pull image from distributed-kv-store repo
+  kv-node-0:
+    image: distributed-kv-store:latest
+    # ports: ["8000:8000"]
+    profiles: ["full-stack"]
+
+  kv-node-1:
+    image: distributed-kv-store:latest
+    # ports: ["8001:8001"]
+    profiles: ["full-stack"]
+
+  kv-node-2:
+    image: distributed-kv-store:latest
+    # ports: ["8002:8002"]
+    profiles: ["full-stack"]
+
+  # ─── Layer 2: Agent Memory Service ────────────────────────────────────────
+  # TODO Phase 6: pull image from agent-memory-service repo
+  memory-service:
+    image: agent-memory-service:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - KV_STORE_NODES=http://kv-node-0:8000,http://kv-node-1:8001,http://kv-node-2:8002
+    depends_on:
+      - kv-node-0
+      - kv-node-1
+      - kv-node-2
+    profiles: ["full-stack"]
+
+  # ─── Layer 3: Agent Execution Engine ──────────────────────────────────────
+  # TODO Phase 6: wire entrypoint once API module is complete
+  agent-engine:
+    build: .
+    ports:
+      - "9000:9000"
+    environment:
+      - MEMORY_SERVICE_URL=http://memory-service:8080
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ENGINE_API_PORT=9000
+      - LOG_LEVEL=INFO
+    depends_on:
+      - memory-service
+    profiles: ["full-stack"]
