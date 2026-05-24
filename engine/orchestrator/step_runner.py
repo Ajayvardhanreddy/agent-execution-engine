@@ -9,6 +9,7 @@ import anthropic
 
 from engine.context.builder import ContextBuilder
 from engine.context.compressor import ContextCompressor
+from engine.memory.client import MemoryServiceUnavailable, MemoryServiceUnreachable
 from engine.models import RunContext
 from engine.orchestrator.loop_guard import LoopGuard
 from engine.orchestrator.retry_policy import LLM_RETRY
@@ -86,7 +87,7 @@ class StepRunner:
             case AgentState.EXECUTE_TOOL:
                 return await self._execute_tool(ctx)
             case AgentState.OBSERVE_RESULT:
-                return self._observe_result(ctx)
+                return await self._observe_result(ctx)
             case AgentState.WRITE_MEMORY:
                 return await self._write_memory(ctx)
             case AgentState.CHECK_TERMINATION:
@@ -97,7 +98,43 @@ class StepRunner:
     # ── State handlers ──────────────────────────────────────────────────────────
 
     async def _load_memory(self, ctx: RunContext) -> AgentState:
-        # Phase 1: no-op — memory wired in Phase 2
+        if ctx.session_memory is None:
+            # Memory not configured (e.g. unit tests without memory service)
+            return AgentState.BUILD_CONTEXT
+
+        try:
+            # 1. Load session history (last 50 messages from prior turns)
+            prior = await ctx.session_memory.load(
+                ctx.run.agent_id, ctx.run.session_id, last_n=50
+            )
+            if prior:
+                # Restore prior history, then append the new user turn
+                ctx.messages = prior
+                ctx.messages.append({"role": "user", "content": ctx.run.input})
+                logger.info(
+                    "session_memory loaded %d prior messages run=%s", len(prior), ctx.run_id
+                )
+
+            # 2. Load user facts (persistent across all sessions for this user)
+            if ctx.user_memory is not None:
+                ctx.user_facts = await ctx.user_memory.load_facts(
+                    ctx.run.agent_id, ctx.run.user_id
+                )
+                if ctx.user_facts:
+                    logger.info(
+                        "user_memory loaded %d facts user=%s", len(ctx.user_facts), ctx.run.user_id
+                    )
+
+        except MemoryServiceUnreachable:
+            # Layer 2 process is not running — degrade gracefully (dev / no-memory mode)
+            logger.warning("Memory service unreachable — running without memory run=%s", ctx.run_id)
+            return AgentState.BUILD_CONTEXT
+
+        except MemoryServiceUnavailable as exc:
+            # Layer 2 is running but KV store is down — hard fail per spec
+            ctx.failure_reason = f"memory_unavailable: {exc}"
+            return AgentState.FAIL
+
         return AgentState.BUILD_CONTEXT
 
     async def _build_context(self, ctx: RunContext) -> AgentState:
@@ -106,12 +143,15 @@ class StepRunner:
             self._compressor.compress(ctx)
         return AgentState.CALL_LLM
 
+    def _effective_system_prompt(self, ctx: RunContext) -> str:
+        return self._builder.build_system_prompt(ctx)
+
     async def _call_llm(self, ctx: RunContext) -> AgentState:
         tools_schemas = self._registry.get_anthropic_schemas(ctx.run.tools)
         kwargs: dict[str, Any] = {
             "model": self._model,
             "max_tokens": min(4096, max(256, ctx.budget_tracker.remaining_tokens())),
-            "system": ctx.run.system_prompt,
+            "system": self._effective_system_prompt(ctx),
             "messages": ctx.messages,
         }
         if tools_schemas:
@@ -247,8 +287,7 @@ class StepRunner:
 
         return AgentState.OBSERVE_RESULT
 
-    def _observe_result(self, ctx: RunContext) -> AgentState:
-        # Phase 1: log results; Phase 2 will persist to working memory
+    async def _observe_result(self, ctx: RunContext) -> AgentState:
         for result in ctx.last_tool_results:
             logger.info(
                 json.dumps({
@@ -260,10 +299,48 @@ class StepRunner:
                     "retries_used": result.retries_used,
                 })
             )
+            # Persist tool result to working memory
+            if ctx.working_memory is not None:
+                try:
+                    await ctx.working_memory.append_tool_result(
+                        ctx.run.agent_id,
+                        ctx.run_id,
+                        tool_name=result.tool_name,
+                        success=result.success,
+                        output=result.output,
+                        error_msg=result.error.message if result.error else None,
+                    )
+                except (MemoryServiceUnavailable, MemoryServiceUnreachable):
+                    # Working memory write failure is non-fatal
+                    logger.warning("working_memory write failed — continuing run=%s", ctx.run_id)
+
         return AgentState.WRITE_MEMORY
 
     async def _write_memory(self, ctx: RunContext) -> AgentState:
-        # Phase 1: no-op — memory wired in Phase 2
+        if ctx.session_memory is None:
+            return AgentState.CHECK_TERMINATION
+
+        try:
+            # Append the user's input to session memory on the very first write
+            # (step 1 — before this, messages list only has the user input)
+            if ctx.budget_tracker.steps_taken == 1:
+                await ctx.session_memory.append_user_message(
+                    ctx.run.agent_id, ctx.run.session_id, ctx.run.input
+                )
+
+            # Extract and store any new user facts from the user's message
+            if ctx.user_memory is not None and ctx.budget_tracker.steps_taken == 1:
+                await ctx.user_memory.extract_and_store(
+                    ctx.run.agent_id,
+                    ctx.run.user_id,
+                    ctx.run.input,
+                    ctx.user_facts,
+                )
+
+        except (MemoryServiceUnavailable, MemoryServiceUnreachable):
+            # Session write failure is non-fatal mid-run
+            logger.warning("session_memory write failed mid-run — continuing run=%s", ctx.run_id)
+
         return AgentState.CHECK_TERMINATION
 
     def _check_termination(self, ctx: RunContext) -> AgentState:
