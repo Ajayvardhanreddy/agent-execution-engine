@@ -29,7 +29,7 @@ cp .env.example .env
 Copy the template and fill it in:
 
 ```bash
-cp tool_template.py my_tools/order_lookup.py
+cp docs/tool_template.py my_tools/order_lookup.py
 ```
 
 Edit `my_tools/order_lookup.py`. Replace the input/output models and function body with your real logic. The only rule: the function must be `async` and return a plain `dict`.

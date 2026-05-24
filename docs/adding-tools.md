@@ -18,7 +18,7 @@ my_tools/
   register.py            ← imports all tools, registers them at startup
 ```
 
-Copy `tool_template.py` from the repo root for each new tool. Fill in four things:
+Copy `docs/tool_template.py` for each new tool. Fill in four things:
 
 1. **Input model** — what the LLM sends to your tool
 2. **Output model** — what your tool sends back
