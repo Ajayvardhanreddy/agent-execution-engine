@@ -26,12 +26,32 @@ class RunBudget(BaseModel):
     timeout_seconds: int = 90
 
 
-class AgentRun(BaseModel):
+class AgentDefinition(BaseModel):
+    """Server-side agent configuration registered once by the engineering team."""
+    agent_id: str
+    description: str
+    system_prompt: str
+    tools: list[str]            # names of tools from the ToolRegistry this agent may call
+    default_budget: RunBudget = RunBudget()
+    created_at: str = ""        # ISO timestamp — set by AgentRegistry.register()
+
+
+class RunRequest(BaseModel):
+    """Lean public API request — callers send only runtime variables."""
     agent_id: str
     session_id: str
     user_id: str
     input: str
-    tools: list[str]            # names of registered tools the agent may call
+    budget_override: RunBudget | None = None   # tighten limits for this run only
+
+
+class AgentRun(BaseModel):
+    """Internal model — built by the API layer after looking up AgentDefinition."""
+    agent_id: str
+    session_id: str
+    user_id: str
+    input: str
+    tools: list[str]
     system_prompt: str
     budget: RunBudget = RunBudget()
     eval_on_completion: bool = False
