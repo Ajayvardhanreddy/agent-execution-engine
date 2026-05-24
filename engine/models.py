@@ -9,6 +9,13 @@ from engine.context.budget import BudgetTracker
 from engine.observability.traces import TraceCollector
 from engine.tools.schemas import ToolResult
 
+# Memory types — imported lazily to avoid circular imports at module load
+# (memory modules import client which imports os/httpx; safe to import here)
+from engine.memory.session_memory import SessionMemory
+from engine.memory.user_memory import UserMemory
+from engine.memory.working_memory import WorkingMemory
+from engine.memory.audit_memory import AuditMemory
+
 
 # ── Public request / response contracts ───────────────────────────────────────
 
@@ -76,3 +83,13 @@ class RunContext:
     # Loop and duplicate-call tracking
     state_history: list[str] = field(default_factory=list)
     seen_tool_calls: set[str] = field(default_factory=set)
+
+    # Memory objects (injected by AgentEngine, used by StepRunner)
+    session_memory: SessionMemory | None = None
+    user_memory: UserMemory | None = None
+    working_memory: WorkingMemory | None = None
+    audit_memory: AuditMemory | None = None
+
+    # User facts loaded from user memory at LOAD_MEMORY
+    # Injected into the system prompt by ContextBuilder
+    user_facts: list[str] = field(default_factory=list)
