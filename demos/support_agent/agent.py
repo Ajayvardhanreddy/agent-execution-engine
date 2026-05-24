@@ -5,6 +5,9 @@ Usage:
     uv run python demos/support_agent/agent.py
     uv run python demos/support_agent/agent.py --scenario eligible_refund
     uv run python demos/support_agent/agent.py --scenario fraud_risk_escalation
+
+    # Phase 2 — memory persistence demo (requires Layer 2 running on localhost:8080)
+    uv run python demos/support_agent/agent.py --memory-demo
 """
 from __future__ import annotations
 
@@ -107,6 +110,64 @@ async def run_all(engine: AgentEngine) -> None:
         print()
 
 
+async def run_memory_demo(engine: AgentEngine) -> None:
+    """
+    Phase 2 memory demo — requires Layer 2 running on localhost:8080.
+
+    Run 1: User introduces themselves and requests a refund.
+           Engine stores name in user memory, conversation in session memory.
+    Run 2: Same user, new session. Engine loads user facts from user memory.
+           Agent greets the user by name without being told again.
+    """
+    user_id = "user_memory_demo"
+    agent_id = "support_agent"
+
+    print("\n" + "=" * 60)
+    print("PHASE 2 MEMORY DEMO")
+    print("=" * 60)
+
+    # ── Run 1 ──────────────────────────────────────────────────────────────────
+    print("\n[RUN 1] User introduces themselves + requests refund")
+    print("─" * 60)
+
+    run1 = AgentRun(
+        agent_id=agent_id,
+        session_id="memory_demo_sess_001",
+        user_id=user_id,
+        input=(
+            "Hi, my name is Alex. I need help with order ORD-789. "
+            "It arrived damaged and I'd like a refund."
+        ),
+        tools=TOOL_NAMES,
+        system_prompt=SYSTEM_PROMPT,
+        budget=RunBudget(max_steps=12, max_tokens=8000, max_cost_usd=0.10, timeout_seconds=60),
+    )
+    result1 = await engine.run(run1)
+    print(f"Status:       {result1.status}")
+    print(f"Final answer: {result1.final_answer[:120] if result1.final_answer else 'N/A'}...")
+    print(f"User facts stored in memory ↑ (name: Alex)")
+
+    # ── Run 2 ──────────────────────────────────────────────────────────────────
+    print("\n[RUN 2] Same user, new session — agent should greet Alex by name")
+    print("─" * 60)
+
+    run2 = AgentRun(
+        agent_id=agent_id,
+        session_id="memory_demo_sess_002",   # different session
+        user_id=user_id,                      # same user
+        input="Hi, what's the status of the refund I requested earlier?",
+        tools=TOOL_NAMES,
+        system_prompt=SYSTEM_PROMPT,
+        budget=RunBudget(max_steps=8, max_tokens=5000, max_cost_usd=0.05, timeout_seconds=60),
+    )
+    result2 = await engine.run(run2)
+    print(f"Status:       {result2.status}")
+    print(f"Final answer: {result2.final_answer[:200] if result2.final_answer else 'N/A'}")
+
+    name_used = result2.final_answer and "alex" in result2.final_answer.lower()
+    print(f"\n{'✓ PASS' if name_used else '✗ FAIL'} — Agent {'greeted Alex by name' if name_used else 'did NOT use the name Alex'}")
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Customer Support Agent demo")
     parser.add_argument(
@@ -114,11 +175,18 @@ async def main() -> None:
         default=None,
         help=f"Scenario name. Options: {[s.name for s in SCENARIOS]}. Omit to run all.",
     )
+    parser.add_argument(
+        "--memory-demo",
+        action="store_true",
+        help="Run Phase 2 memory persistence demo (requires Layer 2 on localhost:8080)",
+    )
     args = parser.parse_args()
 
     engine = build_engine()
 
-    if args.scenario:
+    if args.memory_demo:
+        await run_memory_demo(engine)
+    elif args.scenario:
         await run_scenario(engine, args.scenario)
     else:
         await run_all(engine)

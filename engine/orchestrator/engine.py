@@ -8,6 +8,11 @@ import uuid
 import anthropic
 
 from engine.context.budget import BudgetTracker
+from engine.memory.audit_memory import AuditMemory
+from engine.memory.client import MemoryClient, MemoryServiceUnavailable, MemoryServiceUnreachable
+from engine.memory.session_memory import SessionMemory
+from engine.memory.user_memory import UserMemory
+from engine.memory.working_memory import WorkingMemory
 from engine.models import AgentRun, AgentRunResult, RunContext
 from engine.observability.traces import Trace, TraceCollector, store_trace
 from engine.orchestrator.state_machine import AgentState, TERMINAL_STATES
@@ -26,6 +31,7 @@ class AgentEngine:
         self,
         registry: ToolRegistry,
         model: str | None = None,
+        memory_url: str | None = None,
     ) -> None:
         self._registry = registry
         self._model = model or os.environ.get("EVAL_MODEL", "claude-haiku-4-5-20251001")
@@ -33,6 +39,13 @@ class AgentEngine:
             api_key=os.environ.get("ANTHROPIC_API_KEY"),
         )
         self._step_runner = StepRunner(registry, self._llm, self._model)
+
+        # Memory client — shared across all runs
+        self._memory_client = MemoryClient(base_url=memory_url)
+        self._session_memory = SessionMemory(self._memory_client)
+        self._user_memory = UserMemory(self._memory_client)
+        self._working_memory = WorkingMemory(self._memory_client)
+        self._audit_memory = AuditMemory(self._memory_client)
 
     async def run(self, request: AgentRun) -> AgentRunResult:
         run_id = f"run_{uuid.uuid4().hex[:12]}"
@@ -53,6 +66,11 @@ class AgentEngine:
             trace_id=trace_id,
             budget_tracker=budget_tracker,
             trace_collector=trace_collector,
+            # Inject memory objects
+            session_memory=self._session_memory,
+            user_memory=self._user_memory,
+            working_memory=self._working_memory,
+            audit_memory=self._audit_memory,
         )
 
         logger.info("Starting run %s (trace %s) agent=%s", run_id, trace_id, request.agent_id)
@@ -67,6 +85,42 @@ class AgentEngine:
         ended_at = datetime.datetime.utcnow().isoformat()
         status = _terminal_status(state, ctx)
 
+        # ── Post-run memory operations ─────────────────────────────────────────
+
+        # 1. Write assistant final answer to session memory
+        if ctx.final_answer and ctx.session_memory:
+            try:
+                await ctx.session_memory.append_assistant_message(
+                    request.agent_id, request.session_id, ctx.final_answer
+                )
+            except (MemoryServiceUnavailable, MemoryServiceUnreachable):
+                logger.warning("Failed to write final answer to session memory run=%s", run_id)
+
+        # 2. Write audit record
+        try:
+            await self._audit_memory.write(
+                request.agent_id,
+                run_id,
+                session_id=request.session_id,
+                user_id=request.user_id,
+                status=status,
+                steps_taken=budget_tracker.steps_taken,
+                total_tokens=budget_tracker.tokens_used,
+                total_cost_usd=budget_tracker.cost_usd,
+                latency_ms=budget_tracker.elapsed_ms(),
+                trace_id=trace_id,
+                failure_reason=ctx.failure_reason,
+            )
+        except (MemoryServiceUnavailable, MemoryServiceUnreachable):
+            logger.warning("Failed to write audit record run=%s", run_id)
+
+        # 3. Delete working memory explicitly
+        try:
+            await self._working_memory.delete(request.agent_id, run_id)
+        except (MemoryServiceUnavailable, MemoryServiceUnreachable):
+            logger.warning("Failed to delete working memory run=%s", run_id)
+
+        # ── Build and store trace ──────────────────────────────────────────────
         trace = Trace(
             trace_id=trace_id,
             run_id=run_id,
@@ -110,7 +164,6 @@ def _terminal_status(state: AgentState, ctx: RunContext) -> str:
         return "completed"
     if state == AgentState.ESCALATE:
         return "escalated"
-    # FAIL — distinguish budget_exceeded vs timeout vs generic failed
     reason = ctx.failure_reason or ""
     if "max_steps" in reason or "max_tokens" in reason or "max_cost_usd" in reason:
         return "budget_exceeded"
