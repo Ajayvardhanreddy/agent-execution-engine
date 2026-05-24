@@ -22,7 +22,7 @@ from fastapi import FastAPI
 from prometheus_client import make_asgi_app
 
 from engine.api.middleware import PrometheusMiddleware
-from engine.api.routes import health, runs, traces
+from engine.api.routes import agents, health, runs, traces
 
 # ── Logging ────────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -48,6 +48,7 @@ app.add_middleware(PrometheusMiddleware)
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
 app.include_router(health.router)
+app.include_router(agents.router)
 app.include_router(runs.router)
 app.include_router(traces.router)
 
