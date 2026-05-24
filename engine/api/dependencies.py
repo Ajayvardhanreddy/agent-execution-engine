@@ -1,42 +1,52 @@
 """
-FastAPI dependency-injection helpers.
-
-The AgentEngine is expensive to create (opens an Anthropic client, sets up
-memory client, etc.) so we build one singleton at startup and inject it into
-every route via FastAPI's dependency system.
+FastAPI dependency-injection helpers — singleton AgentEngine, ToolRegistry,
+and AgentRegistry shared across all requests.
 """
 from __future__ import annotations
 
 import os
 from functools import lru_cache
 
+from engine.api.agent_registry import AgentRegistry
 from engine.orchestrator.engine import AgentEngine
 from engine.tools.registry import ToolRegistry
 
 
 @lru_cache(maxsize=1)
-def _build_engine() -> AgentEngine:
+def _build_tool_registry() -> ToolRegistry:
     """
-    Build the shared AgentEngine singleton.
+    Singleton ToolRegistry.
 
-    Tool registry is empty by default — production deployments should
-    sub-class or replace this function to register their tools.
-    Use the /runs endpoint's `tools` list to gate which tools each run
-    may call; the registry is the superset of what's available.
+    Production deployments: import this and call .register() on your tools
+    at application startup (e.g. in a lifespan handler or startup script).
+    See tool_template.py and docs/adding-tools.md for the pattern.
     """
-    registry = ToolRegistry()
+    return ToolRegistry()
+
+
+@lru_cache(maxsize=1)
+def _build_agent_registry() -> AgentRegistry:
+    return AgentRegistry(tool_registry=_build_tool_registry())
+
+
+@lru_cache(maxsize=1)
+def _build_engine() -> AgentEngine:
     return AgentEngine(
-        registry=registry,
+        registry=_build_tool_registry(),
         model=os.environ.get("EVAL_MODEL"),
         memory_url=os.environ.get("MEMORY_SERVICE_URL"),
     )
 
 
+# ── FastAPI dependencies ───────────────────────────────────────────────────────
+
+def get_tool_registry() -> ToolRegistry:
+    return _build_tool_registry()
+
+
+def get_agent_registry() -> AgentRegistry:
+    return _build_agent_registry()
+
+
 def get_engine() -> AgentEngine:
-    """FastAPI dependency — returns the singleton AgentEngine."""
     return _build_engine()
-
-
-def get_registry() -> ToolRegistry:
-    """FastAPI dependency — returns the singleton ToolRegistry."""
-    return _build_engine()._registry  # type: ignore[attr-defined]
