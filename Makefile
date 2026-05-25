@@ -33,7 +33,7 @@ eval-case:
 # ── Dev ────────────────────────────────────────────────────────────────────────
 
 serve:
-	uv run uvicorn engine.api.app:app --reload
+	uv run uvicorn engine.api.app:app --reload --port 9000
 
 demo:
 	PYTHONPATH=. uv run python demos/support_agent/agent.py --scenario eligible_refund
