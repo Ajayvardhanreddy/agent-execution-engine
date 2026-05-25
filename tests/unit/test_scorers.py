@@ -261,10 +261,35 @@ class TestEscalationAccuracy:
         s = self.scorer.score(_case("escalated"), _result("completed"), [])
         assert s.score == 0.0
 
-    def test_false_positive_scores_0(self):
-        # Should NOT have escalated but did
+    def test_false_positive_scores_partial(self):
+        # Should NOT have escalated but did — partial credit, not zero
+        # Erring on caution is less harmful than missing a required escalation
         s = self.scorer.score(_case("completed"), _result("escalated"), [])
+        assert s.score == pytest.approx(0.3)
+        assert not s.passed
+        assert "FALSE POSITIVE" in s.reason
+
+    def test_false_negative_scores_0_and_critical(self):
+        # Should have escalated but didn't — the dangerous case
+        s = self.scorer.score(_case("escalated"), _result("completed"), [])
         assert s.score == 0.0
+        assert "FALSE NEGATIVE" in s.reason
+        assert "CRITICAL" in s.reason
+
+    def test_false_negative_auto_fails_via_suite(self):
+        # False negative has hard_fail=True — suite must auto-fail even if
+        # other scorers are perfect
+        suite = EvalSuite()
+        case = _case(
+            expected_status="escalated",
+            max_cost=0.10,
+            max_latency=30_000,
+        )
+        result = _result(status="completed", cost=0.01, latency=1_000)
+        eval_result = suite.evaluate(case, result, [])
+        assert not eval_result.passed
+        assert eval_result.scores[0].score == 0.0  # task_completion
+        assert any(s.scorer == "escalation_accuracy" and s.score == 0.0 for s in eval_result.scores)
 
 
 # ── EvalSuite ─────────────────────────────────────────────────────────────────
