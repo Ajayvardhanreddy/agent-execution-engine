@@ -1,4 +1,4 @@
-.PHONY: test eval eval-support eval-engineering eval-case clean-reports lint
+.PHONY: test eval eval-support eval-engineering eval-case clean-reports lint docker-build docker-run docker-down mcp
 
 # ── Tests ──────────────────────────────────────────────────────────────────────
 
@@ -46,3 +46,22 @@ lint:
 
 clean-reports:
 	rm -f evals/reports/*.json
+
+# ── Docker ─────────────────────────────────────────────────────────────────────
+
+docker-build:
+	docker build -t agent-execution-engine .
+
+# Requires ANTHROPIC_API_KEY in environment or .env file.
+docker-run:
+	docker compose up --build
+
+docker-down:
+	docker compose down
+
+# ── MCP ────────────────────────────────────────────────────────────────────────
+# Runs the MCP server locally over stdio (for Claude Desktop dev use).
+# For SSE mode: MCP_TRANSPORT=sse make mcp
+
+mcp:
+	PYTHONPATH=. uv run python -m engine.mcp.server

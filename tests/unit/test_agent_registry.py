@@ -5,6 +5,7 @@ and tool validation.
 from __future__ import annotations
 
 import pytest
+from pydantic import BaseModel
 
 from engine.api.agent_registry import (
     AgentAlreadyExists,
@@ -12,11 +13,9 @@ from engine.api.agent_registry import (
     AgentRegistry,
     UnknownTools,
 )
-from engine.models import AgentDefinition, RunBudget
+from engine.models import AgentDefinition
 from engine.tools.registry import ToolRegistry
 from engine.tools.schemas import ToolDefinition
-from pydantic import BaseModel
-
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 

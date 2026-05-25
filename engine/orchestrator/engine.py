@@ -15,7 +15,7 @@ from engine.memory.user_memory import UserMemory
 from engine.memory.working_memory import WorkingMemory
 from engine.models import AgentRun, AgentRunResult, RunContext
 from engine.observability.traces import Trace, TraceCollector, store_trace
-from engine.orchestrator.state_machine import AgentState, TERMINAL_STATES
+from engine.orchestrator.state_machine import TERMINAL_STATES, AgentState
 from engine.orchestrator.step_runner import StepRunner
 from engine.tools.registry import ToolRegistry
 

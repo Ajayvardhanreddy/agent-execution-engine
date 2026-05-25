@@ -34,7 +34,9 @@ TRANSITIONS: dict[AgentState, frozenset[AgentState]] = {
     AgentState.EXECUTE_TOOL:      frozenset({AgentState.OBSERVE_RESULT, AgentState.ESCALATE, AgentState.FAIL}),
     AgentState.OBSERVE_RESULT:    frozenset({AgentState.WRITE_MEMORY}),
     AgentState.WRITE_MEMORY:      frozenset({AgentState.CHECK_TERMINATION}),
-    AgentState.CHECK_TERMINATION: frozenset({AgentState.CALL_LLM, AgentState.RESPOND, AgentState.ESCALATE, AgentState.FAIL}),
+    AgentState.CHECK_TERMINATION: frozenset({
+        AgentState.CALL_LLM, AgentState.RESPOND, AgentState.ESCALATE, AgentState.FAIL,
+    }),
     AgentState.RESPOND:           frozenset(),
     AgentState.ESCALATE:          frozenset(),
     AgentState.FAIL:              frozenset(),
