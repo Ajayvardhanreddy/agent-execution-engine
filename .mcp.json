@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "agent-engine": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "python", "-m", "engine.mcp.server"],
+      "env": {
+        "ENGINE_URL": "http://localhost:9000",
+        "PYTHONPATH": "/Users/ajayvardhanreddy/Documents/Projects/ai-infra/agent-execution-engine"
+      }
+    }
+  }
+}
