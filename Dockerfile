@@ -15,9 +15,7 @@ RUN uv sync --frozen --no-dev
 # Copy source
 COPY . .
 
-# TODO Phase 6: set PYTHONPATH and entrypoint once API module is built
 ENV PYTHONPATH=/app
 EXPOSE 9000
 
-# Placeholder — replace with: uv run uvicorn api.main:app --host 0.0.0.0 --port 9000
-CMD ["uv", "run", "python", "-c", "print('Agent Execution Engine — not yet configured')"]
+CMD ["uv", "run", "uvicorn", "engine.api.app:app", "--host", "0.0.0.0", "--port", "9000"]

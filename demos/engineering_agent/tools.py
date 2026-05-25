@@ -12,12 +12,9 @@ Tools:
 """
 from __future__ import annotations
 
-from typing import Any
-
 from pydantic import BaseModel
 
 from engine.tools.schemas import ToolDefinition
-
 
 # ── Input / Output schemas ─────────────────────────────────────────────────────
 

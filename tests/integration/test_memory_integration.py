@@ -11,11 +11,11 @@ import json
 import pytest
 from pytest_httpx import HTTPXMock
 
+from engine.memory.audit_memory import AuditMemory
 from engine.memory.client import MemoryClient, MemoryServiceUnavailable
 from engine.memory.session_memory import SessionMemory
 from engine.memory.user_memory import UserMemory
 from engine.memory.working_memory import WorkingMemory
-from engine.memory.audit_memory import AuditMemory
 
 BASE = "http://localhost:8080"
 

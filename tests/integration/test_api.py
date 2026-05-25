@@ -7,18 +7,17 @@ A real ToolRegistry and AgentRegistry are used so validation logic is tested.
 """
 from __future__ import annotations
 
-import pytest
-from fastapi.testclient import TestClient
-from pydantic import BaseModel
 from unittest.mock import AsyncMock, MagicMock
 
+from fastapi.testclient import TestClient
+from pydantic import BaseModel
+
+from engine.api.agent_registry import AgentRegistry
 from engine.api.app import app
 from engine.api.dependencies import get_agent_registry, get_engine, get_tool_registry
-from engine.api.agent_registry import AgentRegistry
 from engine.models import AgentRunResult
 from engine.tools.registry import ToolRegistry
 from engine.tools.schemas import ToolDefinition
-
 
 # ── Shared test fixtures ──────────────────────────────────────────────────────
 

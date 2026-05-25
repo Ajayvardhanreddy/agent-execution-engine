@@ -1,9 +1,9 @@
 import pytest
 
 from engine.orchestrator.state_machine import (
-    AgentState,
     TERMINAL_STATES,
     TRANSITIONS,
+    AgentState,
     validate_transition,
 )
 

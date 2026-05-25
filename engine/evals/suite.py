@@ -4,7 +4,7 @@ returns a consolidated EvalResult.
 """
 from __future__ import annotations
 
-from engine.evals.base import EvalCase, EvalResult, PASS_THRESHOLD, Scorer
+from engine.evals.base import PASS_THRESHOLD, EvalCase, EvalResult, Scorer
 from engine.evals.scorers import (
     AnswerQualityScorer,
     CostEfficiencyScorer,

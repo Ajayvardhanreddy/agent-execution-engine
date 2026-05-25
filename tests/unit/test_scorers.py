@@ -19,7 +19,6 @@ from engine.evals.scorers import (
 from engine.evals.suite import EvalSuite
 from engine.models import AgentRunResult
 
-
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 def _case(

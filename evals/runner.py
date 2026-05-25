@@ -32,20 +32,19 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 
-import demos.support_agent.agent as _support_demo
 import demos.engineering_agent.agent as _eng_demo
-from demos.support_agent.tools import ALL_TOOLS as _SUPPORT_TOOLS
+import demos.support_agent.agent as _support_demo
 from demos.engineering_agent.tools import ALL_TOOLS as _ENG_TOOLS
-from evals.dataset.support_cases import SUPPORT_CASES
-from evals.dataset.engineering_cases import ENGINEERING_CASES
-from evals.report import print_report, save_report
+from demos.support_agent.tools import ALL_TOOLS as _SUPPORT_TOOLS
 from engine.evals.base import EvalCase, EvalResult
 from engine.evals.suite import EvalSuite
 from engine.models import AgentRun, RunBudget
 from engine.observability.traces import get_trace
 from engine.orchestrator.engine import AgentEngine
 from engine.tools.registry import ToolRegistry
-
+from evals.dataset.engineering_cases import ENGINEERING_CASES
+from evals.dataset.support_cases import SUPPORT_CASES
+from evals.report import print_report, save_report
 
 # ── Per-suite configuration ────────────────────────────────────────────────────
 

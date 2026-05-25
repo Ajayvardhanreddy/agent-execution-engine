@@ -6,16 +6,15 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from engine.context.budget import BudgetTracker
-from engine.observability.traces import TraceCollector
-from engine.tools.schemas import ToolResult
+from engine.memory.audit_memory import AuditMemory
 
 # Memory types — imported lazily to avoid circular imports at module load
 # (memory modules import client which imports os/httpx; safe to import here)
 from engine.memory.session_memory import SessionMemory
 from engine.memory.user_memory import UserMemory
 from engine.memory.working_memory import WorkingMemory
-from engine.memory.audit_memory import AuditMemory
-
+from engine.observability.traces import TraceCollector
+from engine.tools.schemas import ToolResult
 
 # ── Public request / response contracts ───────────────────────────────────────
 

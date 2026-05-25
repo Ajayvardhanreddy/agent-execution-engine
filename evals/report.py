@@ -4,7 +4,6 @@ Eval report — formats EvalResults to stdout and saves JSON to evals/reports/.
 from __future__ import annotations
 
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 

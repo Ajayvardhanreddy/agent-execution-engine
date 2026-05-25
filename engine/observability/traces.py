@@ -47,7 +47,11 @@ class TraceCollector:
         return list(self._spans)
 
     def emit_json(self, extra: dict[str, Any] | None = None) -> None:
-        payload: dict[str, Any] = {"trace_id": self.trace_id, "run_id": self.run_id, "spans": [s.model_dump() for s in self._spans]}
+        payload: dict[str, Any] = {
+            "trace_id": self.trace_id,
+            "run_id": self.run_id,
+            "spans": [s.model_dump() for s in self._spans],
+        }
         if extra:
             payload.update(extra)
         logger.info(json.dumps(payload))

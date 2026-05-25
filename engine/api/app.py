@@ -16,7 +16,6 @@ Routes:
 from __future__ import annotations
 
 import logging
-import os
 
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app
