@@ -21,8 +21,10 @@ eval-support:
 	PYTHONPATH=. uv run python evals/runner.py --suite support
 
 eval-engineering:
-	@echo "Engineering agent evals available in Phase 5."
-	@echo "Run after Phase 5 is complete: make eval-engineering"
+	PYTHONPATH=. uv run python evals/runner.py --suite engineering
+
+eval-all:
+	PYTHONPATH=. uv run python evals/runner.py --suite all
 
 # Run a single case: make eval-case CASE=support_005
 eval-case:
@@ -35,6 +37,9 @@ serve:
 
 demo:
 	PYTHONPATH=. uv run python demos/support_agent/agent.py --scenario eligible_refund
+
+demo-eng:
+	PYTHONPATH=. uv run python demos/engineering_agent/agent.py --scenario review_pr
 
 lint:
 	uv run ruff check engine/ tests/ evals/ demos/

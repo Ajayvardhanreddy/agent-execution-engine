@@ -4,11 +4,13 @@ a scored report.
 
 Usage:
     PYTHONPATH=. uv run python evals/runner.py --suite support
+    PYTHONPATH=. uv run python evals/runner.py --suite engineering
+    PYTHONPATH=. uv run python evals/runner.py --suite all
     PYTHONPATH=. uv run python evals/runner.py --suite support --case support_005
     PYTHONPATH=. uv run python evals/runner.py --suite support --no-save
 
 The runner calls AgentEngine directly (no HTTP server required).
-The support agent's tools and system prompt are imported from the demo.
+Agent tools and system prompts are imported from the respective demos.
 """
 from __future__ import annotations
 
@@ -30,9 +32,12 @@ logging.basicConfig(
     stream=sys.stderr,
 )
 
-from demos.support_agent.agent import SYSTEM_PROMPT, TOOL_NAMES
-from demos.support_agent.tools import ALL_TOOLS
-from evals.dataset.support_cases import ENGINEERING_CASES, SUPPORT_CASES
+import demos.support_agent.agent as _support_demo
+import demos.engineering_agent.agent as _eng_demo
+from demos.support_agent.tools import ALL_TOOLS as _SUPPORT_TOOLS
+from demos.engineering_agent.tools import ALL_TOOLS as _ENG_TOOLS
+from evals.dataset.support_cases import SUPPORT_CASES
+from evals.dataset.engineering_cases import ENGINEERING_CASES
 from evals.report import print_report, save_report
 from engine.evals.base import EvalCase, EvalResult
 from engine.evals.suite import EvalSuite
@@ -42,9 +47,28 @@ from engine.orchestrator.engine import AgentEngine
 from engine.tools.registry import ToolRegistry
 
 
-def _build_engine() -> AgentEngine:
+# ── Per-suite configuration ────────────────────────────────────────────────────
+
+_SUITE_CONFIG = {
+    "support": {
+        "tools": _SUPPORT_TOOLS,
+        "tool_names": _support_demo.TOOL_NAMES,
+        "system_prompt": _support_demo.SYSTEM_PROMPT,
+        "cases": SUPPORT_CASES,
+    },
+    "engineering": {
+        "tools": _ENG_TOOLS,
+        "tool_names": _eng_demo.TOOL_NAMES,
+        "system_prompt": _eng_demo.SYSTEM_PROMPT,
+        "cases": ENGINEERING_CASES,
+    },
+}
+
+
+def _build_engine(suite: str) -> AgentEngine:
+    config = _SUITE_CONFIG[suite]
     registry = ToolRegistry()
-    for tool in ALL_TOOLS:
+    for tool in config["tools"]:
         registry.register(tool)
     return AgentEngine(registry=registry)
 
@@ -65,14 +89,16 @@ async def _run_case(
     case: EvalCase,
     engine: AgentEngine,
     suite: EvalSuite,
+    suite_name: str,
 ) -> EvalResult:
+    config = _SUITE_CONFIG[suite_name]
     internal_run = AgentRun(
         agent_id=case.agent_id,
         session_id=case.session_id,
         user_id=case.user_id,
         input=case.input,
-        tools=TOOL_NAMES,
-        system_prompt=SYSTEM_PROMPT,
+        tools=config["tool_names"],
+        system_prompt=config["system_prompt"],
         budget=RunBudget(
             max_steps=15,
             max_tokens=10_000,
@@ -118,7 +144,7 @@ async def run_suite(
             print(f"Case '{filter_case_id}' not found.")
             return []
 
-    engine = _build_engine()
+    engine = _build_engine(suite_name)
     eval_suite = EvalSuite()
     results: list[EvalResult] = []
 
@@ -127,7 +153,7 @@ async def run_suite(
 
     for i, case in enumerate(cases, 1):
         print(f"  [{i:02d}/{len(cases):02d}] {case.case_id}: {case.description[:55]}...", end="", flush=True)
-        result = await _run_case(case, engine, eval_suite)
+        result = await _run_case(case, engine, eval_suite, suite_name)
         results.append(result)
         status = "✓" if result.passed else "✗"
         print(f" {status} ({result.overall_score:.2f})")
@@ -166,16 +192,16 @@ def main() -> None:
         sys.exit(1)
 
     suite_map = {
-        "support": (SUPPORT_CASES, "support"),
-        "engineering": (ENGINEERING_CASES, "engineering"),
+        "support": SUPPORT_CASES,
+        "engineering": ENGINEERING_CASES,
     }
 
     if args.suite == "all":
-        for cases, name in suite_map.values():
+        for name, cases in suite_map.items():
             asyncio.run(run_suite(cases, name, save=not args.no_save, filter_case_id=args.case))
     else:
-        cases, name = suite_map[args.suite]
-        asyncio.run(run_suite(cases, name, save=not args.no_save, filter_case_id=args.case))
+        cases = suite_map[args.suite]
+        asyncio.run(run_suite(cases, args.suite, save=not args.no_save, filter_case_id=args.case))
 
 
 if __name__ == "__main__":
