@@ -8,7 +8,6 @@ from __future__ import annotations
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
 
 from engine.models import AgentRunResult
 

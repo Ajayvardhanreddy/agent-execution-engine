@@ -17,7 +17,6 @@ import json
 import logging
 import os
 import sys
-
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -95,7 +94,7 @@ async def run_scenario(engine: AgentEngine, scenario_name: str) -> None:
     result = await engine.run(request)
 
     print(f"\n{'─'*60}")
-    print(f"RESULT")
+    print("RESULT")
     print(f"{'─'*60}")
     print(json.dumps(result.model_dump(), indent=2))
     print(f"\nExpected status : {scenario.expected_status}")
@@ -145,7 +144,7 @@ async def run_memory_demo(engine: AgentEngine) -> None:
     result1 = await engine.run(run1)
     print(f"Status:       {result1.status}")
     print(f"Final answer: {result1.final_answer[:120] if result1.final_answer else 'N/A'}...")
-    print(f"User facts stored in memory ↑ (name: Alex)")
+    print("User facts stored in memory ↑ (name: Alex)")
 
     # ── Run 2 ──────────────────────────────────────────────────────────────────
     print("\n[RUN 2] Same user, new session — agent should greet Alex by name")
@@ -165,7 +164,8 @@ async def run_memory_demo(engine: AgentEngine) -> None:
     print(f"Final answer: {result2.final_answer[:200] if result2.final_answer else 'N/A'}")
 
     name_used = result2.final_answer and "alex" in result2.final_answer.lower()
-    print(f"\n{'✓ PASS' if name_used else '✗ FAIL'} — Agent {'greeted Alex by name' if name_used else 'did NOT use the name Alex'}")
+    outcome = "greeted Alex by name" if name_used else "did NOT use the name Alex"
+    print(f"\n{'✓ PASS' if name_used else '✗ FAIL'} — Agent {outcome}")
 
 
 async def main() -> None:

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import time
 
-import pytest
 from fastapi.testclient import TestClient
 
 from engine.api.app import app

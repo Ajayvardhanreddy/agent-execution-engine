@@ -11,11 +11,11 @@ from engine.context.builder import ContextBuilder
 from engine.context.compressor import ContextCompressor
 from engine.memory.client import MemoryServiceUnavailable, MemoryServiceUnreachable
 from engine.models import RunContext
+from engine.observability.spans import Span
 from engine.orchestrator.loop_guard import LoopGuard
 from engine.orchestrator.retry_policy import LLM_RETRY
 from engine.orchestrator.state_machine import AgentState
 from engine.orchestrator.termination import TerminationChecker
-from engine.observability.spans import Span
 from engine.tools.executor import ToolExecutor
 from engine.tools.registry import ToolRegistry
 
